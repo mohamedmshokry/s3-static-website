@@ -33,9 +33,14 @@ steps:
 
     wiki_dir="${AGENT_TEMPDIRECTORY}/ado-wiki"
     wiki_repo_url="https://mohamedshokryaz01@dev.azure.com/mohamedshokryaz01/ADO-VMSS/_git/ADO-VMSS.wiki"
+    if [ -z "${SYSTEM_ACCESSTOKEN:-}" ]; then
+      echo "System.AccessToken is empty. Enable OAuth token access for scripts on this pipeline." >&2
+      exit 1
+    fi
+    auth_header="$(printf ':%s' "${SYSTEM_ACCESSTOKEN}" | base64 | tr -d '\n')"
 
     rm -rf "${wiki_dir}"
-    git -c http.extraheader="AUTHORIZATION: bearer ${SYSTEM_ACCESSTOKEN}" clone "${wiki_repo_url}" "${wiki_dir}"
+    git -c http.extraheader="AUTHORIZATION: basic ${auth_header}" clone "${wiki_repo_url}" "${wiki_dir}"
 
     cp CHANGELOG.md "${wiki_dir}/CHANGELOG.md"
     cd "${wiki_dir}"
@@ -45,7 +50,7 @@ steps:
     git add CHANGELOG.md
     git diff --cached --quiet && echo "No wiki changelog changes to commit." && exit 0
     git commit -m "Update changelog for build $(Build.BuildId)"
-    git -c http.extraheader="AUTHORIZATION: bearer ${SYSTEM_ACCESSTOKEN}" push origin HEAD:wikiMaster
+    git -c http.extraheader="AUTHORIZATION: basic ${auth_header}" push origin HEAD:wikiMaster
   displayName: "Publish changelog to Azure DevOps Wiki"
   env:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
