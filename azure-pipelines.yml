@@ -6,14 +6,27 @@
 trigger:
 - main
 
+resources:
+  repositories:
+  - repository: adoWiki
+    type: git
+    name: ADO-VMSS/ADO-VMSS.wiki
+    ref: refs/heads/wikiMaster
+
 pool:
   name: "Default"
 
 steps:
 - checkout: self
+  path: s
   persistCredentials: true
   clean: true
   fetchDepth: 0
+
+- checkout: adoWiki
+  path: ado-wiki
+  persistCredentials: true
+  clean: true
 
 - script: echo Hello, world!
   displayName: 'Run a one-line script'
@@ -27,22 +40,15 @@ steps:
     git checkout -B main origin/main
     git log --pretty=format:"% - %s (%an, %ar)" --reverse > CHANGELOG.md
   displayName: 'Run git command to capture changelog to output'
+  workingDirectory: $(Pipeline.Workspace)/s
 
 - bash: |
     set -euo pipefail
 
-    wiki_dir="${AGENT_TEMPDIRECTORY}/ado-wiki"
-    wiki_repo_url="https://mohamedshokryaz01@dev.azure.com/mohamedshokryaz01/ADO-VMSS/_git/ADO-VMSS.wiki"
-    if [ -z "${SYSTEM_ACCESSTOKEN:-}" ]; then
-      echo "System.AccessToken is empty. Enable OAuth token access for scripts on this pipeline." >&2
-      exit 1
-    fi
-    auth_header="$(printf ':%s' "${SYSTEM_ACCESSTOKEN}" | base64 | tr -d '\n')"
+    source_dir="$(Pipeline.Workspace)/s"
+    wiki_dir="$(Pipeline.Workspace)/ado-wiki"
 
-    rm -rf "${wiki_dir}"
-    git -c http.extraheader="AUTHORIZATION: basic ${auth_header}" clone "${wiki_repo_url}" "${wiki_dir}"
-
-    cp CHANGELOG.md "${wiki_dir}/CHANGELOG.md"
+    cp "${source_dir}/CHANGELOG.md" "${wiki_dir}/CHANGELOG.md"
     cd "${wiki_dir}"
 
     git config user.email "mohamed.magdysokry@gmail.com"
@@ -50,7 +56,5 @@ steps:
     git add CHANGELOG.md
     git diff --cached --quiet && echo "No wiki changelog changes to commit." && exit 0
     git commit -m "Update changelog for build $(Build.BuildId)"
-    git -c http.extraheader="AUTHORIZATION: basic ${auth_header}" push origin HEAD:wikiMaster
+    git push origin HEAD:wikiMaster
   displayName: "Publish changelog to Azure DevOps Wiki"
-  env:
-    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
