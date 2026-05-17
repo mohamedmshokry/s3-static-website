@@ -1,8 +1,6 @@
 name: Trigger Azure pipeline
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   build:
