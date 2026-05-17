@@ -16,3 +16,30 @@ steps:
 - script: |
     echo Triggered by Github Actions
   displayName: 'Run a multi-line script'
+
+- bash: |
+    git log --pretty=format:"% - %s (%an, %ar)" --reverse > CHANGELOG.md
+  displayName: 'Run git command to capture changelog to output'
+
+- task: CopyFiles@2
+  displayName: "Copy Changelog to Wiki folder"
+  inputs:
+    SourceFolder: '$(Build.Repository.LocalPath)'
+    Contents: 'CHANGELOG.md'
+    TargetFolder: '$(Build.Repository.LocalPath)/wiki'
+    CleanTargetFolder: true
+    OverWrite: true
+
+- task: CmdLine@2
+  displayName: "Commit changlog to Wiki folder"
+  inputs:
+    script: |
+      git checkout main
+      git pull
+      git config --global user.email "mohamed.magdysokry@gmail.com"
+      git config --global user.name "mohamedmshokry"
+      git remote add origin https://github.com/mohamedmshokry/s3-static-website.git
+      git add .
+      git commit -m "[skip ci] Update Changelog for $(Build.BuildId) in wiki folder"
+      git push origin HEAD:main
+
