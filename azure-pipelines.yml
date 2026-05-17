@@ -34,6 +34,8 @@ steps:
   displayName: "Commit changlog to Wiki folder"
   inputs:
     script: |
+      git clone https://github.com/mohamedmshokry/s3-static-website.git
+      cd s3-static-website
       git checkout main
       git pull
       git config --global user.email "mohamed.magdysokry@gmail.com"
