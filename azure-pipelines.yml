@@ -28,22 +28,24 @@ steps:
     git log --pretty=format:"% - %s (%an, %ar)" --reverse > CHANGELOG.md
   displayName: 'Run git command to capture changelog to output'
 
-- task: CopyFiles@2
-  displayName: "Copy Changelog to Wiki folder"
-  inputs:
-    SourceFolder: '$(Build.Repository.LocalPath)'
-    Contents: 'CHANGELOG.md'
-    TargetFolder: '$(Build.Repository.LocalPath)/wiki'
-    CleanTargetFolder: true
-    OverWrite: true
+- bash: |
+    set -euo pipefail
 
-- task: CmdLine@2
-  displayName: "Commit changlog to Wiki folder"
-  inputs:
-    script: |
-      git config --global user.email "mohamed.magdysokry@gmail.com"
-      git config --global user.name "mohamedmshokry"
-      git add CHANGELOG.md wiki/CHANGELOG.md
-      git diff --cached --quiet && echo "No changelog changes to commit." && exit 0
-      git commit -m "[skip ci] Update Changelog for $(Build.BuildId) in wiki folder"
-      git push origin HEAD:main
+    wiki_dir="${AGENT_TEMPDIRECTORY}/ado-wiki"
+    wiki_repo_url="https://mohamedshokryaz01@dev.azure.com/mohamedshokryaz01/ADO-VMSS/_git/ADO-VMSS.wiki"
+
+    rm -rf "${wiki_dir}"
+    git -c http.extraheader="AUTHORIZATION: bearer ${SYSTEM_ACCESSTOKEN}" clone "${wiki_repo_url}" "${wiki_dir}"
+
+    cp CHANGELOG.md "${wiki_dir}/CHANGELOG.md"
+    cd "${wiki_dir}"
+
+    git config user.email "mohamed.magdysokry@gmail.com"
+    git config user.name "mohamedmshokry"
+    git add CHANGELOG.md
+    git diff --cached --quiet && echo "No wiki changelog changes to commit." && exit 0
+    git commit -m "Update changelog for build $(Build.BuildId)"
+    git -c http.extraheader="AUTHORIZATION: bearer ${SYSTEM_ACCESSTOKEN}" push origin HEAD:wikiMaster
+  displayName: "Publish changelog to Azure DevOps Wiki"
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
